@@ -1,9 +1,29 @@
-import { useState } from "react";
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  Button,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  View,
+} from "react-native";
 
+import * as Notifications from "expo-notifications";
+import { SchedulableTriggerInputTypes } from "expo-notifications";
 import HomeScreen from "../Screen/HomeScreen";
 import LoginScreen from "../Screen/LoginScreen";
 import RegisterScreen from "../Screen/RegisterScreen";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => {
+    return {
+      shouldPlaySound: false,
+      shouldSetBadge: false, //uyg ikonuna kırmızı bildirim sayısı ekler
+      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    };
+  },
+});
 
 export default function RootScreen() {
   const [currentScreen, setCurrentScreen] = useState("Login");
@@ -42,12 +62,44 @@ export default function RootScreen() {
     }
   };
 
+  //bildirime basınca uygulamaya girme veya uygulama kapalıyken bildirime basınca uygulamaya girmeyi sağlar ve bunu useeffcet ile ypaprız
+  useEffect(() => {
+    const subscription = Notifications.addNotificationReceivedListener(
+      (notification) => {
+        console.log("notification received");
+        console.log(notification);
+        const userName = notification.request.content.data.username;
+        console.log("username: ", userName);
+      },
+    );
+
+    return () => {
+      subscription.remove(); //bunu yapmazsak uygulama kapalıyken bildirim gelince hata verir
+    };
+  }, []);
+
+  async function scheduleNotificationAsync() {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "My First LOCAL NOTIFICATION",
+        body: "This is the body of the notification",
+        data: { username: "JohnDoe" },
+      },
+      trigger: {
+        type: SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: 5,
+        repeats: false,
+      },
+    });
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.safeArea}
       behavior={Platform.select({ ios: "padding", android: undefined })}
     >
       <View style={styles.container}>{chooseScreen()}</View>
+      <Button title="Test Notification" onPress={scheduleNotificationAsync} />
     </KeyboardAvoidingView>
   );
 }
