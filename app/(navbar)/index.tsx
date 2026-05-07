@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  Alert,
   Button,
   KeyboardAvoidingView,
   Platform,
@@ -62,6 +63,38 @@ export default function RootScreen() {
     }
   };
 
+  //push bildirimler içn farklı araçları tanımlamak için pushtoken alıcaz
+
+  useEffect(() => {
+    //bildirim izinleri için ancak expo go da bu zaten var bu bağımsız oldupunda.
+    async function configurePushNotifications() {
+      const { status } = await Notifications.getPermissionsAsync();
+      let finalStatus = status;
+
+      if (finalStatus !== "granted") {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== "granted") {
+        Alert.alert("Push notifications permission denied");
+        return;
+      }
+
+      const pushTokenData = await Notifications.getExpoPushTokenAsync();
+      console.log(pushTokenData);
+      //andrıid için izin kısmı
+      if (Platform.OS === "android") {
+        Notifications.setNotificationChannelAsync("default", {
+          name: "default",
+          importance: Notifications.AndroidImportance.DEFAULT,
+        });
+      }
+    }
+
+    configurePushNotifications();
+  }, []);
+
   //bildirime basınca uygulamaya girme veya uygulama kapalıyken bildirime basınca uygulamaya girmeyi sağlar ve bunu useeffcet ile ypaprız
   useEffect(() => {
     const subscription = Notifications.addNotificationReceivedListener(
@@ -93,12 +126,32 @@ export default function RootScreen() {
     });
   }
 
+  //arka uç ile test için bildirim göndermek için bunu kullanabiliriz
+
+  function sendPushNotificationHandler() {
+    fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        to: "",
+        title: "Test Push Notification",
+        body: "this is a test notification",
+      }),
+    });
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.safeArea}
       behavior={Platform.select({ ios: "padding", android: undefined })}
     >
       <View style={styles.container}>{chooseScreen()}</View>
+      <Button
+        title="Schedule Notifications"
+        onPress={sendPushNotificationHandler}
+      ></Button>
       <Button title="Test Notification" onPress={scheduleNotificationAsync} />
     </KeyboardAvoidingView>
   );
